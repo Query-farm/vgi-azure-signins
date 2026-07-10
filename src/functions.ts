@@ -61,6 +61,27 @@ export function makeWatermarkFunction(spec: EndpointSpec, clientFactory: ClientF
       lag_minutes: new Int64(),
     },
     argDefaults: { since: "", until: "", filter: "", page_size: DEFAULT_PAGE_SIZE, lag_minutes: DEFAULT_LAG_MIN },
+    argDocs: {
+      since:
+        "The already-lagged high-watermark from the prior scan (the marker row's `_watermark_next`), replayed as the lower bound (`createdDateTime ge <since>`). Empty (the default) performs a backfill from the start of retention with no lower bound.",
+      until:
+        "Optional upper bound (`createdDateTime le <until>`) for historical replay of a bounded window. A caller-supplied `until` is a replay-only cursor and must NOT be persisted as the live ingestion watermark. Empty (the default) means no upper bound.",
+      filter:
+        "An additional OData `$filter` expression AND-ed onto the time-window predicate to narrow the feed (e.g. `\"status/errorCode ne 0\"`). Empty (the default) applies no extra filter.",
+      page_size:
+        "The Microsoft Graph `$top` page size for each request. Graph caps sign-ins at 1000 rows per page; defaults to 1000. Pages are followed inside a single scan.",
+      lag_minutes:
+        "The safety-lag in minutes subtracted from the emitted high-watermark so late-arriving, boundary-unordered events are re-captured on the next scan. Defaults to 10. This overlap is why apply must be idempotent (dedup-by-id).",
+    },
+    examples: spec.examples,
+    tags: {
+      "vgi.category": "watermark-audit-feeds",
+      "vgi.title": spec.title,
+      "vgi.keywords": JSON.stringify(spec.keywords),
+      "vgi.doc_llm": spec.docLlm,
+      "vgi.doc_md": spec.docMd,
+      "vgi.result_columns_schema": JSON.stringify(spec.resultColumns),
+    },
     onBind: () => ({ outputSchema: schema }),
     initialState: (p) => {
       const since = p.args.since ? p.args.since : null;

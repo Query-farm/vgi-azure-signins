@@ -1,0 +1,82 @@
+{
+  "5eea28f974ce59da": {
+    "object": "azure",
+    "kind": "catalog",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "The catalog doc never mentions `azure.main.audit_feeds`, the one credential-free object here; an agent reading only this text will call a table function and fail on the missing secret. Add one sentence: 'Browse `azure.main.audit_feeds` with no credentials to see the two feeds before attaching a secret.'",
+      "'Backfills from the start of retention' overstates what the code does \u2014 `buildWindowUrl` simply omits the lower-bound `$filter`, so the reach is whatever Graph retains (7 days without P1/P2, 30 with). State the retention numbers and that they are Graph-side, not worker-side.",
+      "Document the quiet-window watermark behavior from `collectWindow`: when a scan returns zero rows, `_watermark_next` echoes the input `since` \u2014 and on a backfill that means an *empty string*. A caller that blindly persists it and replays it as `since` silently re-backfills. This is the single sharpest edge in the contract and it appears in no doc string."
+    ],
+    "summary": "Precise, well-calibrated catalog prose; loses points for omitting the discovery view, the real retention bound, and the empty-window watermark edge case."
+  },
+  "ba539b0ec2056ef8": {
+    "object": "azure.main",
+    "kind": "schema",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "The doc_md table lists both functions but omits `audit_feeds`, which lives in this same schema. A third row (or a lead line) pointing at it makes the schema's object list complete and gives an agent a zero-credential starting point.",
+      "The table's 'Returns' column says 'sign-in events + watermark cursor' for both, but the two feeds have materially different `status` semantics \u2014 `signin_logs.status` is a numeric errorCode string ('0' = success) while `audit_logs.status` is the `result` enum ('success'/'failure'). Since the column shares a name across both, an agent will write one predicate for both and get wrong answers. Call the difference out here, at the level where both functions are visible side by side.",
+      "Neither doc mentions the Entra ID P1/P2 license gate that `signin_logs` alone carries, even though it is the main reason to pick `audit_logs` over `signin_logs`. Add it to the table."
+    ],
+    "summary": "Accurate and admirably compact, but a schema-level doc is exactly where the two feeds' differing `status` semantics and license gates should be contrasted, and neither is."
+  },
+  "7074ec8227e11532": {
+    "object": "azure.main.audit_feeds",
+    "kind": "view",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "The view is two rows of literal VALUES; say so ('two rows, static') so an agent doesn't plan a scan or add a LIMIT.",
+      "The license gate is buried inside the free-text `description` column ('requires Entra ID P1/P2'). Promote it to a typed column \u2014 `requires_p1_p2 BOOLEAN` \u2014 so feed selection becomes a predicate rather than a substring match on prose.",
+      "Add a `secret_type` column (constant `'azure_graph'`) so the credential-free index also tells the agent exactly what secret to attach next; today the doc says 'attach an `azure_graph` secret' in prose the SQL result never carries."
+    ],
+    "summary": "The strongest object in the catalog \u2014 column comments match the VALUES exactly, examples are runnable, and the credential-free framing is genuinely useful to an agent."
+  },
+  "6431c2b5e0850700": {
+    "object": "azure.main.signin_logs",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 3,
+      "clarity": 4,
+      "completeness": 3,
+      "audience_fit": 3
+    },
+    "suggestions": [
+      "`parameter_types` is `[VARCHAR, BIGINT, VARCHAR, VARCHAR, BIGINT]` but it aligns with neither the alphabetical `parameters` list (filter, lag_minutes, page_size, since, until \u2192 VARCHAR, BIGINT, BIGINT, VARCHAR, VARCHAR) nor the declaration order in `functions.ts` (since, until, filter, page_size, lag_minutes \u2192 VARCHAR, VARCHAR, VARCHAR, BIGINT, BIGINT). An agent binding positionally from this metadata will pass a string where an Int64 is expected. Emit the types in the same order as the `parameters` array, and make the exporter derive both from `args`.",
+      "`doc_llm` enumerates 'Columns: created_date_time, app_display_name, user_principal_name, ip_address, and status' \u2014 but `schemaFor()` returns seven fields, and the three it omits (`id`, `_row_kind`, `_watermark_next`) are precisely the ones every example query touches. The prose teaches `WHERE _row_kind IS NULL` without ever saying `_row_kind` is a column. List all seven, or say 'plus `id` and the control columns `_row_kind`/`_watermark_next`.'",
+      "The `lag_minutes` doc gives the default and the rationale but not the failure mode. `watermark-driver.ts` notes that `lag_minutes := 0` removes the overlap and causes provable event loss. That belongs in the argDoc \u2014 it is the one value an agent might reasonably choose to 'reduce latency' with no idea it is trading away completeness."
+    ],
+    "summary": "Prose and column semantics are accurate and the watermark contract is explained unusually well, but the `parameter_types` ordering is wrong and the doc_llm column list silently drops the three columns its own examples depend on."
+  },
+  "75608f992e8e7ff4": {
+    "object": "azure.main.audit_logs",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 2,
+      "clarity": 4,
+      "completeness": 3,
+      "audience_fit": 3
+    },
+    "suggestions": [
+      "The `filter` argDoc offers `\"status/errorCode ne 0\"` as its example \u2014 copy-pasted from `signin_logs`. `directoryAudits` has no `status` navigation property; its outcome field is the `result` enum (which `functions.ts` maps to the `status` column). This OData expression will 400 against Graph. Use `\"result eq 'failure'\"` instead, and make `filter`/`page_size` per-spec fields on `EndpointSpec` rather than shared argDocs, since that is what let the copy-paste through.",
+      "The `page_size` argDoc says 'Graph caps sign-ins at 1000 rows per page' inside the *audit logs* function \u2014 same copy-paste. Rewrite for `directoryAudits`, or state the cap generically without naming the wrong endpoint.",
+      "The column is named `app_display_name` but sources `loggedByService`, so its values are 'Core Directory' and 'Self-service Password Management', not application names. `doc_llm` parenthetically says '(the logging service)', which is easy for an agent to skim past when the column name says otherwise. Lead with it: 'app_display_name \u2014 despite the name, the Entra service that logged the event (`loggedByService`), not an application.'"
+    ],
+    "summary": "Structurally identical to `signin_logs` and carries the same `parameter_types` and column-list gaps, but is additionally penalized because two shared argDocs were copy-pasted unchanged and now describe sign-in semantics that are invalid against `directoryAudits`."
+  }
+}

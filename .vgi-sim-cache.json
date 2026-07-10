@@ -1,0 +1,150 @@
+{
+  "e680617893955412": {
+    "name": "recent_signins",
+    "outcome": "fail",
+    "reason": "reference_sql failed: Invalid Input Error: VGI Worker Exception: Error: signin_logs: attach an 'azure_graph' secret (TYPE azure_graph)\nError: signin_logs: attach an 'azure_graph' secret (TYPE azure_graph)\n    at <anonymous> (/Users/rusty/Development/vgi-azure-signins/src/functions.ts:109:30)\n    at <anonymous> (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi/src/functions/table.ts:482:24)\n    at <anonymous> (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi/src/protocol/handlers/function.ts:208:24)\n    at async dispatchStream (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi-rpc/src/dispatch/stream.ts:157:22)\n    at async serveOne (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi-rpc/src/server.ts:357:15)\n    at async serveConnection (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi-rpc/src/server.ts:214:20)\n    at async run (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi-rpc/src/server.ts:182:16)\n    at processTicksAndRejections (native:7:39) [worker: bun run /Users/rusty/Development/vgi-azure-signins/src/worker.ts]",
+    "friction": [
+      "signin_logs cannot be executed without an azure_graph secret, and there is no credential-free sample or fixture mode, so the column list and marker-row convention could only be inferred from prose docs rather than verified against a real scan.",
+      "describe_table does not work on table functions (main.signin_logs returns 'no table'), and describe_function's output truncates before the parameter docs, so there is no authoritative machine-readable column list or argument signature for the feed.",
+      "The marker row is described narratively ('a marker row whose _watermark_next is the cursor') but the docs never state which columns are NULL on event rows versus the marker, so filtering it out requires guessing at the sentinel."
+    ],
+    "queries": 1,
+    "grader": "reference",
+    "path": {
+      "discovery_calls": 4,
+      "queries": 1,
+      "bind_errors": 0,
+      "requirement_errors": 0,
+      "runtime_errors": 1,
+      "blocked": 0,
+      "redundant_describes": 0,
+      "not_found": 1,
+      "hit_ceiling": false,
+      "score": 84
+    },
+    "suggestions": [
+      "Agent looked up an object that doesn't exist \u2014 the metadata implies a name that isn't there; align docs/examples with the real schema.",
+      "Analyst noted: signin_logs cannot be executed without an azure_graph secret, and there is no credential-free sample or fixture mode, so the column list and marker-row convention could only be inferred from prose docs rather than verified against a real scan.",
+      "Analyst noted: describe_table does not work on table functions (main.signin_logs returns 'no table'), and describe_function's output truncates before the parameter docs, so there is no authoritative machine-readable column list or argument signature for the feed.",
+      "Analyst noted: The marker row is described narratively ('a marker row whose _watermark_next is the cursor') but the docs never state which columns are NULL on event rows versus the marker, so filtering it out requires guessing at the sentinel."
+    ],
+    "attempts_used": 1
+  },
+  "76712d33c40c97f5": {
+    "name": "browse_feeds",
+    "outcome": "fail",
+    "reason": "result differs from the reference solution",
+    "friction": [],
+    "queries": 1,
+    "grader": "reference",
+    "path": {
+      "discovery_calls": 2,
+      "queries": 1,
+      "bind_errors": 0,
+      "requirement_errors": 0,
+      "runtime_errors": 0,
+      "blocked": 0,
+      "redundant_describes": 0,
+      "not_found": 0,
+      "hit_ceiling": false,
+      "score": 100
+    },
+    "suggestions": [],
+    "attempts_used": 1
+  },
+  "a37a4b1d3c406eb1": {
+    "name": "failed_signins_by_app",
+    "outcome": "fail",
+    "reason": "reference_sql failed: Invalid Input Error: VGI Worker Exception: Error: signin_logs: attach an 'azure_graph' secret (TYPE azure_graph)\nError: signin_logs: attach an 'azure_graph' secret (TYPE azure_graph)\n    at <anonymous> (/Users/rusty/Development/vgi-azure-signins/src/functions.ts:109:30)\n    at <anonymous> (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi/src/functions/table.ts:482:24)\n    at <anonymous> (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi/src/protocol/handlers/function.ts:208:24)\n    at async dispatchStream (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi-rpc/src/dispatch/stream.ts:157:22)\n    at async serveOne (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi-rpc/src/server.ts:357:15)\n    at async serveConnection (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi-rpc/src/server.ts:214:20)\n    at async run (unknown)\n    at processTicksAndRejections (native:7:39) [worker: bun run /Users/rusty/Development/vgi-azure-signins/src/worker.ts]",
+    "friction": [
+      "signin_logs cannot be scanned at all without an azure_graph secret, so there is no credential-free way to inspect its result columns \u2014 describe_table rejects it (it is a function, not a table) and describe_function's parameter docs were truncated before showing an output-column list.",
+      "The output schema is only described in prose inside doc_llm ('Columns: created_date_time, app_display_name, user_principal_name, ip_address, and status'). The marker column `_watermark_next` is described behaviorally but never listed as a column, and the `id` column implied by 'dedup-by-id' is never named anywhere, so a dedup query cannot be written from metadata alone.",
+      "status is documented as 'the sign-in errorCode; 0 = success' but its type and nullability are unstated \u2014 if the marker row carries a NULL status, `status <> 0` would silently drop it anyway, masking the need for the _watermark_next guard.",
+      "The doc says user_principal_name is masked through vgi-pii -> vgi-mask format-preserving masking; it states masked values stay joinable but not whether masking is injective, so COUNT(DISTINCT user_principal_name) may undercount if distinct users collide to the same masked value."
+    ],
+    "queries": 1,
+    "grader": "reference",
+    "path": {
+      "discovery_calls": 4,
+      "queries": 1,
+      "bind_errors": 0,
+      "requirement_errors": 0,
+      "runtime_errors": 1,
+      "blocked": 0,
+      "redundant_describes": 0,
+      "not_found": 1,
+      "hit_ceiling": false,
+      "score": 84
+    },
+    "suggestions": [
+      "Agent looked up an object that doesn't exist \u2014 the metadata implies a name that isn't there; align docs/examples with the real schema.",
+      "Analyst noted: signin_logs cannot be scanned at all without an azure_graph secret, so there is no credential-free way to inspect its result columns \u2014 describe_table rejects it (it is a function, not a table) and describe_function's parameter docs were truncated before showing an output-column list.",
+      "Analyst noted: The output schema is only described in prose inside doc_llm ('Columns: created_date_time, app_display_name, user_principal_name, ip_address, and status'). The marker column `_watermark_next` is described behaviorally but never listed as a column, and the `id` column implied by 'dedup-by-id' is never named anywhere, so a dedup query cannot be written from metadata alone.",
+      "Analyst noted: status is documented as 'the sign-in errorCode; 0 = success' but its type and nullability are unstated \u2014 if the marker row carries a NULL status, `status <> 0` would silently drop it anyway, masking the need for the _watermark_next guard.",
+      "Analyst noted: The doc says user_principal_name is masked through vgi-pii -> vgi-mask format-preserving masking; it states masked values stay joinable but not whether masking is injective, so COUNT(DISTINCT user_principal_name) may undercount if distinct users collide to the same masked value."
+    ],
+    "attempts_used": 1
+  },
+  "d12439a3d795df00": {
+    "name": "audit_activity",
+    "outcome": "fail",
+    "reason": "reference_sql failed: Invalid Input Error: VGI Worker Exception: Error: audit_logs: attach an 'azure_graph' secret (TYPE azure_graph)\nError: audit_logs: attach an 'azure_graph' secret (TYPE azure_graph)\n    at <anonymous> (/Users/rusty/Development/vgi-azure-signins/src/functions.ts:109:30)\n    at <anonymous> (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi/src/functions/table.ts:482:24)\n    at <anonymous> (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi/src/protocol/handlers/function.ts:208:24)\n    at async dispatchStream (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi-rpc/src/dispatch/stream.ts:157:22)\n    at async serveOne (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi-rpc/src/server.ts:357:15)\n    at async serveConnection (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi-rpc/src/server.ts:214:20)\n    at async run (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi-rpc/src/server.ts:182:16)\n    at processTicksAndRejections (native:7:39) [worker: bun run /Users/rusty/Development/vgi-azure-signins/src/worker.ts]",
+    "friction": [
+      "describe_table on a table function errors with 'no table main.audit_logs' \u2014 the only way to see its columns is DESCRIBE SELECT * FROM azure.main.audit_logs(...), which is non-obvious. Both should resolve table functions.",
+      "The _row_kind / _watermark_next marker contract is central to querying these feeds correctly, but neither column appears in describe_function's per-argument docs, and the doc_llm text was truncated before explaining that data rows have _row_kind IS NULL. An agent without repo access would likely aggregate the marker row into the results.",
+      "audit_logs() cannot be executed without an azure_graph secret, so the returned SQL is unverified against real data."
+    ],
+    "queries": 2,
+    "grader": "reference",
+    "path": {
+      "discovery_calls": 4,
+      "queries": 2,
+      "bind_errors": 0,
+      "requirement_errors": 0,
+      "runtime_errors": 1,
+      "blocked": 0,
+      "redundant_describes": 0,
+      "not_found": 1,
+      "hit_ceiling": false,
+      "score": 84
+    },
+    "suggestions": [
+      "Agent looked up an object that doesn't exist \u2014 the metadata implies a name that isn't there; align docs/examples with the real schema.",
+      "Analyst noted: describe_table on a table function errors with 'no table main.audit_logs' \u2014 the only way to see its columns is DESCRIBE SELECT * FROM azure.main.audit_logs(...), which is non-obvious. Both should resolve table functions.",
+      "Analyst noted: The _row_kind / _watermark_next marker contract is central to querying these feeds correctly, but neither column appears in describe_function's per-argument docs, and the doc_llm text was truncated before explaining that data rows have _row_kind IS NULL. An agent without repo access would likely aggregate the marker row into the results.",
+      "Analyst noted: audit_logs() cannot be executed without an azure_graph secret, so the returned SQL is unverified against real data."
+    ],
+    "attempts_used": 1
+  },
+  "927101eeb74b07ab": {
+    "name": "save_watermark_cursor",
+    "outcome": "fail",
+    "reason": "reference_sql failed: Invalid Input Error: VGI Worker Exception: Error: signin_logs: attach an 'azure_graph' secret (TYPE azure_graph)\nError: signin_logs: attach an 'azure_graph' secret (TYPE azure_graph)\n    at <anonymous> (/Users/rusty/Development/vgi-azure-signins/src/functions.ts:109:30)\n    at <anonymous> (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi/src/functions/table.ts:482:24)\n    at <anonymous> (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi/src/protocol/handlers/function.ts:208:24)\n    at async dispatchStream (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi-rpc/src/dispatch/stream.ts:157:22)\n    at async serveOne (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi-rpc/src/server.ts:357:15)\n    at async serveConnection (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi-rpc/src/server.ts:214:20)\n    at async run (/Users/rusty/Development/vgi-azure-signins/node_modules/@query-farm/vgi-rpc/src/server.ts:182:16)\n    at processTicksAndRejections (native:7:39) [worker: bun run /Users/rusty/Development/vgi-azure-signins/src/worker.ts]",
+    "friction": [
+      "describe_function on signin_logs never lists the result columns \u2014 it only documents the business columns in prose. I had to run DESCRIBE SELECT * FROM azure.main.signin_logs() to discover that _row_kind and _watermark_next exist.",
+      "Nothing reachable through the catalog tools states the literal value of _row_kind ('marker') or that data rows are identified by _row_kind IS NULL. The schema/function comments say 'a marker row' but never give the predicate, so writing the cursor query from tool output alone would be guesswork.",
+      "describe_table does not accept table functions (describe_table on signin_logs errors with 'no table main.signin_logs'), which is the natural place to look for a table function's output columns."
+    ],
+    "queries": 2,
+    "grader": "reference",
+    "path": {
+      "discovery_calls": 4,
+      "queries": 2,
+      "bind_errors": 0,
+      "requirement_errors": 0,
+      "runtime_errors": 1,
+      "blocked": 0,
+      "redundant_describes": 0,
+      "not_found": 1,
+      "hit_ceiling": false,
+      "score": 84
+    },
+    "suggestions": [
+      "Agent looked up an object that doesn't exist \u2014 the metadata implies a name that isn't there; align docs/examples with the real schema.",
+      "Analyst noted: describe_function on signin_logs never lists the result columns \u2014 it only documents the business columns in prose. I had to run DESCRIBE SELECT * FROM azure.main.signin_logs() to discover that _row_kind and _watermark_next exist.",
+      "Analyst noted: Nothing reachable through the catalog tools states the literal value of _row_kind ('marker') or that data rows are identified by _row_kind IS NULL. The schema/function comments say 'a marker row' but never give the predicate, so writing the cursor query from tool output alone would be guesswork.",
+      "Analyst noted: describe_table does not accept table functions (describe_table on signin_logs errors with 'no table main.signin_logs'), which is the natural place to look for a table function's output columns."
+    ],
+    "attempts_used": 1
+  }
+}
