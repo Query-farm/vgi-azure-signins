@@ -8,9 +8,19 @@ on:
     branches: [main]
     paths-ignore: ['README.md']
   workflow_dispatch:
+  # Allow release.yml / docker-publish.yml to run this exact suite as a gating
+  # `uses:` job before they publish any binaries or images.
+  workflow_call:
 
 permissions:
   contents: read
+
+concurrency:
+  # Include github.workflow so a direct CI run and the `uses:`-embedded CI job of
+  # release.yml / docker-publish.yml land in DISTINCT groups (in a reusable workflow
+  # github.workflow resolves to the CALLER), so the caller doesn't cancel in-flight CI.
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ci:
