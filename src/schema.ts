@@ -128,7 +128,7 @@ export const SIGNINS: EndpointSpec = {
     "`/auditLogs/signIns` endpoint, cursored by a lagged high-watermark on `createdDateTime`. " +
     "Read data rows with `WHERE _row_kind IS NULL`; take the next cursor from the marker row's " +
     "`_watermark_next` and feed it back as `since`. Apply idempotently (dedup-by-id) because the " +
-    "safety-lag overlap re-emits the window tail. See the examples for full, runnable queries.\n\n" +
+    "safety-lag overlap re-emits the window tail.\n\n" +
     "> Reading sign-in logs requires Entra ID P1/P2 and the `AuditLog.Read.All` Graph permission. " +
     "`ip_address` and `user_principal_name` are PII published through the mandatory " +
     "vgi-pii -> vgi-mask composition.",
@@ -175,6 +175,10 @@ export const SIGNINS: EndpointSpec = {
     {
       sql: "SELECT app_display_name, count(*) AS failures FROM azure.main.signin_logs() WHERE _row_kind IS NULL AND status <> '0' GROUP BY app_display_name ORDER BY failures DESC",
       description: "Count failed sign-ins per application (non-zero errorCode)",
+    },
+    {
+      sql: "SELECT id, created_date_time, app_display_name FROM azure.main.signin_logs(filter := 'status/errorCode ne 0') WHERE _row_kind IS NULL",
+      description: "Narrow the feed server-side to failed sign-ins with an additive OData $filter",
     },
     {
       sql: "SELECT _watermark_next FROM azure.main.signin_logs() WHERE _row_kind = 'marker'",
@@ -229,7 +233,7 @@ export const AUDITS: EndpointSpec = {
     "`/auditLogs/directoryAudits` endpoint, cursored by a lagged high-watermark on `createdDateTime`. " +
     "Read data rows with `WHERE _row_kind IS NULL`; take the next cursor from the marker row's " +
     "`_watermark_next` and feed it back as `since`. Apply idempotently (dedup-by-id) because the " +
-    "safety-lag overlap re-emits the window tail. See the examples for full, runnable queries.\n\n" +
+    "safety-lag overlap re-emits the window tail.\n\n" +
     "> Directory audit logs are available more broadly than sign-in logs; reading them requires the " +
     "`AuditLog.Read.All` Graph permission. `ip_address` and `user_principal_name` are PII published " +
     "through the mandatory vgi-pii -> vgi-mask composition.",
@@ -277,6 +281,10 @@ export const AUDITS: EndpointSpec = {
     {
       sql: "SELECT app_display_name, count(*) AS events FROM azure.main.audit_logs() WHERE _row_kind IS NULL GROUP BY app_display_name ORDER BY events DESC",
       description: "Count audit events per logging service",
+    },
+    {
+      sql: "SELECT id, created_date_time, app_display_name FROM azure.main.audit_logs(since := '2026-01-01T00:00:00Z', until := '2026-02-01T00:00:00Z') WHERE _row_kind IS NULL",
+      description: "Replay a bounded historical window (since/until); the marker cursor here is replay-only, not the live watermark",
     },
     {
       sql: "SELECT _watermark_next FROM azure.main.audit_logs() WHERE _row_kind = 'marker'",

@@ -81,6 +81,12 @@ export function makeWatermarkFunction(spec: EndpointSpec, clientFactory: ClientF
       "vgi.doc_llm": spec.docLlm,
       "vgi.doc_md": spec.docMd,
       "vgi.result_columns_schema": JSON.stringify(spec.resultColumns),
+      // The native duckdb_functions().examples carrier drops per-example descriptions,
+      // so re-publish the same {description, sql} examples as a described-JSON tag
+      // (VGI515). Kept byte-identical to `examples` above.
+      "vgi.example_queries": JSON.stringify(
+        spec.examples.map((e) => ({ description: e.description, sql: e.sql })),
+      ),
     },
     onBind: () => ({ outputSchema: schema }),
     initialState: (p) => {
