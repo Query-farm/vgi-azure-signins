@@ -99,50 +99,29 @@ const CATALOG_TAGS: Record<string, string> = {
       sql: "SELECT id, created_date_time, app_display_name, user_principal_name, ip_address, status FROM azure.main.audit_logs() LIMIT 0",
     },
   ]),
-  // The agent-suitability suite (VGI152), catalog only. Scans require an azure_graph secret
-  // and return tenant-specific, non-deterministic data, so these tasks are graded by
-  // success_criteria (LLM judge) rather than a reference_sql / check_sql oracle (which would
-  // need live credentials and stable ground truth).
+  // The agent-suitability suite (VGI152), catalog only. Only each task's name + prompt is
+  // published here (VGI416); the grader fields live in the private sidecar
+  // vgi-agent-tests.yaml, keyed by task name, and are never shown to the analyst.
   "vgi.agent_test_tasks": JSON.stringify([
     {
       name: "recent_signins",
       prompt: "Show the most recent sign-in events with the user principal name and the application they signed in to.",
-      reference_sql:
-        "SELECT user_principal_name, app_display_name, created_date_time FROM azure.main.signin_logs() WHERE _row_kind IS NULL ORDER BY created_date_time DESC",
-      success_criteria:
-        "The answer queries azure.main.signin_logs(), filters to data rows (_row_kind IS NULL), and returns user_principal_name, app_display_name, and created_date_time (optionally ordered by created_date_time descending).",
     },
     {
       name: "failed_signins_by_app",
       prompt: "Which applications had the most failed sign-ins?",
-      reference_sql:
-        "SELECT app_display_name, count(*) AS failures FROM azure.main.signin_logs() WHERE _row_kind IS NULL AND status <> '0' GROUP BY app_display_name ORDER BY failures DESC",
-      success_criteria:
-        "The answer queries signin_logs(), filters data rows where status <> '0' (a non-zero errorCode means a failed sign-in), groups by app_display_name, and orders by the failure count descending.",
     },
     {
       name: "save_watermark_cursor",
       prompt: "After a sign-in scan, how do I get the cursor to use for the next incremental scan?",
-      reference_sql:
-        "SELECT _watermark_next FROM azure.main.signin_logs() WHERE _row_kind = 'marker'",
-      success_criteria:
-        "The answer selects _watermark_next from the marker row (_row_kind = 'marker') of signin_logs() and explains it should be replayed via the `since` argument, with apply being idempotent dedup-by-id because of the safety-lag overlap.",
     },
     {
       name: "audit_activity",
       prompt: "List directory audit events grouped by the service that logged them.",
-      reference_sql:
-        "SELECT app_display_name, count(*) AS events FROM azure.main.audit_logs() WHERE _row_kind IS NULL GROUP BY app_display_name ORDER BY events DESC",
-      success_criteria:
-        "The answer queries azure.main.audit_logs(), filters to data rows (_row_kind IS NULL), and aggregates a count grouped by app_display_name (the loggedByService).",
     },
     {
       name: "browse_feeds",
       prompt: "What audit feeds can I sync, and which table function serves each?",
-      reference_sql:
-        "SELECT feed, table_function FROM azure.main.audit_feeds ORDER BY feed",
-      success_criteria:
-        "The answer reads azure.main.audit_feeds and lists the feeds (sign-in logs, directory audit logs) alongside the table function that serves each.",
     },
   ]),
 };
