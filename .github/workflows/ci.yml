@@ -33,7 +33,8 @@ jobs:
   # live Microsoft Graph call to /auditLogs/* to return rows), so the VGI9xx live-scan
   # rules (VGI911 scan-responds) can't run without tenant credentials; the browsable
   # `audit_feeds` view and the LIMIT-0 executable examples cover the static surface. No
-  # version pin: @v1 resolves the latest published vgi-lint-check.
+  # version pin: @v2 resolves the latest published vgi-lint-check 2.x, which runs on
+  # haybarn 2.0 and attaches vgi.v3 workers (@v1 is haybarn 1.5 / vgi.v2 only).
   lint:
     name: metadata quality (vgi-lint)
     runs-on: ubuntu-latest
@@ -43,7 +44,7 @@ jobs:
       - name: Install worker dependencies
         run: bun install --frozen-lockfile
       - name: vgi-lint
-        uses: Query-farm/vgi-lint-check@v1
+        uses: Query-farm/vgi-lint-check@v2
         with:
           location: "bun run ${{ github.workspace }}/src/worker.ts"
           fail-on: info
