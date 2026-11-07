@@ -52,6 +52,9 @@ export function makeWatermarkFunction(spec: EndpointSpec, clientFactory: ClientF
   const schema = schemaFor(spec);
   return defineTableFunction<Args, State>({
     name: spec.fn,
+    // Request the azure_graph secret at bind so the connector delivers it (a
+    // missing secret resolves to nothing, so credential-free LIMIT 0 binds still work).
+    requiredSecrets: ["azure_graph"],
     description: spec.description,
     args: {
       since: new Utf8(),
