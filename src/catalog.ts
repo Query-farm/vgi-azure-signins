@@ -28,7 +28,9 @@ export const AZURE_GRAPH_SECRET: SecretTypeDescriptor = {
 
 /** Catalog-level tags: docs, discovery, provenance, and the agent-test suite. */
 const CATALOG_TAGS: Record<string, string> = {
-  "vgi.title": "Microsoft Entra Audit & Sign-in Logs",
+  "vgi.title": "Entra Audit Logs",
+  "vgi.subtitle":
+    "Incremental Microsoft Entra ID sign-in and directory audit events from Microsoft Graph, for security log pipelines.",
   "vgi.doc_llm":
     "Microsoft Entra ID (Azure AD) sign-in and directory audit logs as incremental SQL table " +
     "functions over Microsoft Graph. Reach for it to stream authentication and directory-activity " +
