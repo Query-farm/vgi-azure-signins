@@ -19,11 +19,32 @@ const ISSUES = `${REPO}/issues`;
 export const AZURE_GRAPH_SECRET: SecretTypeDescriptor = {
   name: "azure_graph",
   description: "Microsoft Entra app-only (client-credentials) credentials for Microsoft Graph",
-  schema: new Schema([
-    new Field("tenant_id", new Utf8(), true),
-    new Field("client_id", new Utf8(), true),
-    new Field("client_secret", new Utf8(), true, new Map([["redact", "true"]])),
-  ]),
+  schema: new Schema(
+    [
+      new Field(
+        "tenant_id",
+        new Utf8(),
+        true,
+        new Map([["vgi_doc", "Directory (tenant) ID from the Entra app registration's Overview page."]]),
+      ),
+      new Field(
+        "client_id",
+        new Utf8(),
+        true,
+        new Map([["vgi_doc", "Application (client) ID from the Entra app registration's Overview page."]]),
+      ),
+      new Field(
+        "client_secret",
+        new Utf8(),
+        true,
+        new Map([
+          ["redact", "true"],
+          ["vgi_doc", "Client secret value created under the app registration's Certificates & secrets page."],
+        ]),
+      ),
+    ],
+    new Map([["vgi_doc_url", "https://learn.microsoft.com/en-us/graph/auth-v2-service"]]),
+  ),
 };
 
 /** Catalog-level tags: docs, discovery, provenance, and the agent-test suite. */
@@ -47,11 +68,9 @@ const CATALOG_TAGS: Record<string, string> = {
   "vgi.doc_md":
     "## Microsoft Entra Audit & Sign-in Logs\n\n" +
     "Incremental (lagged-watermark) access to Microsoft Entra ID (Azure AD) audit and sign-in logs " +
-    "via Microsoft Graph, exposed as two DuckDB table functions.\n\n" +
-    "- **`signin_logs`** — Entra ID interactive sign-in events (`/auditLogs/signIns`); requires " +
-    "Entra ID P1/P2.\n" +
-    "- **`audit_logs`** — Entra ID directory audit / activity events (`/auditLogs/directoryAudits`); " +
-    "available more broadly.\n\n" +
+    "via Microsoft Graph, exposed as DuckDB table functions: interactive sign-in events " +
+    "(`/auditLogs/signIns`, requires Entra ID P1/P2) and directory audit / activity events " +
+    "(`/auditLogs/directoryAudits`, available more broadly).\n\n" +
     "Each function returns events in the requested time window plus a single marker row " +
     "(`_row_kind = 'marker'`) whose `_watermark_next` column holds the ISO-8601 (already " +
     "lag-adjusted) high-watermark to persist and replay via the `since` argument on the next scan. " +
@@ -140,11 +159,9 @@ const SCHEMA_TAGS: Record<string, string> = {
     "tail so apply must be idempotent dedup-by-id.",
   "vgi.doc_md":
     "## Entra audit & sign-in log feeds\n\n" +
-    "| Function | Graph endpoint | Returns |\n" +
-    "| --- | --- | --- |\n" +
-    "| `signin_logs` | `/auditLogs/signIns` | sign-in events + watermark cursor |\n" +
-    "| `audit_logs` | `/auditLogs/directoryAudits` | directory audit events + watermark cursor |\n\n" +
-    "Both share the same shape: read data rows with `WHERE _row_kind IS NULL`, and take the next " +
+    "One feed per Microsoft Graph audit endpoint (`/auditLogs/signIns` and " +
+    "`/auditLogs/directoryAudits`); the `audit_feeds` view indexes them without credentials.\n\n" +
+    "Every feed shares the same shape: read data rows with `WHERE _row_kind IS NULL`, and take the next " +
     "cursor from the single marker row's `_watermark_next` (feed it back as `since`). Apply " +
     "idempotently (dedup-by-id). Each requires an app-only `azure_graph` secret.",
   "vgi.keywords": JSON.stringify([

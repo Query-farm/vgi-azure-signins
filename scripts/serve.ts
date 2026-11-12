@@ -53,7 +53,7 @@ const catalogInterface = new ReadOnlyCatalogInterface(makeCatalog(functions), re
 serveVgiWorker({
   name: "signins",
   doc: "Microsoft Entra ID sign-in and directory audit logs as watermarked, incrementally ingestible DuckDB tables.",
-  version: "0.3.0",
+  version: "0.4.0",
   repositoryUrl: "https://github.com/Query-farm/vgi-azure-signins",
   serverId: "vgi-azure-signins",
   registry,
