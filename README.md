@@ -2,6 +2,11 @@
 
 A [VGI](https://query.farm) worker (**Microsoft Entra Audit & Sign-in Logs**) for DuckDB. Microsoft Entra ID (Azure AD) sign-in and directory audit logs as incremental DuckDB table functions over Microsoft Graph: `signin_logs` (interactive sign-in events) and `audit_logs` (directory audit / activity events). Each scan returns the events in the requested window plus a single marker row (`_row_kind = 'marker'`) whose `_watermark_next` is the lag-adjusted high-watermark to pass back as `since`; call with no arguments to backfill. The safety lag re-emits the window tail, so apply idempotently (dedup by `id`, e.g. `INSERT ... ON CONFLICT (id) DO NOTHING`).
 
+## Executed notebooks
+
+[Count sign-ins once, including late arrivals](notebooks/README.md) compares
+lagged replay and SQL deduplication through the real worker using synthetic events.
+
 ## Quick start
 
 Every [GitHub release](https://github.com/Query-farm/vgi-azure-signins/releases) ships a prebuilt worker binary. The `vgi` extension downloads the one for your platform, checks its SHA-256 and caches it, so there is nothing to install besides DuckDB:
