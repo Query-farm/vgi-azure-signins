@@ -31,3 +31,10 @@ tasks:
       SELECT feed, table_function FROM azure.main.audit_feeds ORDER BY feed
     success_criteria: >-
       The answer reads azure.main.audit_feeds and lists the feeds (sign-in logs, directory audit logs) alongside the table function that serves each.
+  # Composed task: needs signin_logs (failed sign-ins, status <> '0') correlated with
+  # audit_logs (directory events) on ip_address. Live tenant data can't be exact-compared
+  # and a structural check_sql would pass any answer, so this task is graded by
+  # success_criteria alone (the LLM judge reads the agent's actual query/answer).
+  - name: failed_signin_ips_with_audit_activity
+    success_criteria: >-
+      The answer correlates azure.main.signin_logs() data rows with a failed status (status <> '0', i.e. a non-zero errorCode) with azure.main.audit_logs() data rows (_row_kind IS NULL) on ip_address, and for each IP that appears in both reports count(DISTINCT user_principal_name) of the audit-event initiators. Counting sign-in users instead of audit initiators, counting rows instead of distinct users, including successful sign-ins, or not filtering out the marker rows is incorrect.

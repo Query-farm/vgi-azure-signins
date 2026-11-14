@@ -83,6 +83,52 @@ const RESULT_COLUMNS_TAIL: ResultColumn[] = [
   },
 ];
 
+// Composed examples: the sign-in feed joined to the directory audit feed (both expose
+// user_principal_name and ip_address, which stay joinable under the vgi-mask FPE
+// composition). Each SQL is defined once here and shared by the driving function's
+// examples (within its first 5, which the vgi-lint agent simulator shows) and the
+// schema-level vgi.example_queries in catalog.ts.
+export const FAILED_SIGNIN_THEN_AUDIT_EXAMPLE: FnExample = {
+  description:
+    "Users with failed sign-ins who later initiated directory audit events: failed sign-in count, first failure time, and how many audit events they initiated after it (users with no later audit event are omitted)",
+  sql:
+    "WITH failed AS (SELECT user_principal_name, count(*) AS failed_signins, min(created_date_time::TIMESTAMPTZ) AS first_failure " +
+    "FROM azure.main.signin_logs() WHERE _row_kind IS NULL AND status <> '0' GROUP BY user_principal_name) " +
+    "SELECT f.user_principal_name, f.failed_signins, f.first_failure, count(*) AS audit_events_after " +
+    "FROM failed AS f JOIN azure.main.audit_logs() AS a " +
+    "ON a.user_principal_name = f.user_principal_name AND a.created_date_time::TIMESTAMPTZ > f.first_failure " +
+    "WHERE a._row_kind IS NULL " +
+    "GROUP BY f.user_principal_name, f.failed_signins, f.first_failure " +
+    "ORDER BY audit_events_after DESC, f.user_principal_name",
+};
+
+export const AUDIT_FROM_FAILED_SIGNIN_IP_EXAMPLE: FnExample = {
+  description:
+    "Directory audit events initiated from an IP address that also produced failed sign-ins, listing the users whose sign-ins failed from that IP (catches a different account acting from the same source)",
+  sql:
+    "SELECT a.id, a.created_date_time, a.app_display_name, a.user_principal_name AS initiated_by, a.status, s.failed_signin_users " +
+    "FROM azure.main.audit_logs() AS a " +
+    "JOIN (SELECT ip_address, list_sort(list(DISTINCT user_principal_name)) AS failed_signin_users " +
+    "FROM azure.main.signin_logs() WHERE _row_kind IS NULL AND status <> '0' GROUP BY ip_address) AS s " +
+    "ON s.ip_address = a.ip_address " +
+    "WHERE a._row_kind IS NULL " +
+    "ORDER BY a.created_date_time, a.id",
+};
+
+export const USER_ACTIVITY_SUMMARY_EXAMPLE: FnExample = {
+  description:
+    "Per-user activity across both feeds: sign-ins, failed sign-ins, and directory audit events initiated (a user missing from one feed gets 0 there; app-initiated audit events with no user are excluded)",
+  sql:
+    "WITH s AS (SELECT user_principal_name, count(*) AS signins, count(*) FILTER (WHERE status <> '0') AS failed_signins " +
+    "FROM azure.main.signin_logs() WHERE _row_kind IS NULL GROUP BY user_principal_name), " +
+    "a AS (SELECT user_principal_name, count(*) AS audit_events FROM azure.main.audit_logs() " +
+    "WHERE _row_kind IS NULL AND user_principal_name IS NOT NULL GROUP BY user_principal_name) " +
+    "SELECT coalesce(s.user_principal_name, a.user_principal_name) AS user_principal_name, " +
+    "coalesce(s.signins, 0) AS signins, coalesce(s.failed_signins, 0) AS failed_signins, coalesce(a.audit_events, 0) AS audit_events " +
+    "FROM s FULL OUTER JOIN a ON a.user_principal_name = s.user_principal_name " +
+    "ORDER BY failed_signins DESC, audit_events DESC, user_principal_name",
+};
+
 // signin_logs — GET /auditLogs/signIns (Entra ID P1/P2 gated).
 export const SIGNINS: EndpointSpec = {
   fn: "signin_logs",
@@ -172,17 +218,18 @@ export const SIGNINS: EndpointSpec = {
       sql: "SELECT id, created_date_time, app_display_name FROM azure.main.signin_logs(since := '<prior _watermark_next>') WHERE _row_kind IS NULL",
       description: "Incremental scan replaying a previously saved high-watermark cursor",
     },
+    FAILED_SIGNIN_THEN_AUDIT_EXAMPLE,
     {
       sql: "SELECT app_display_name, count(*) AS failures FROM azure.main.signin_logs() WHERE _row_kind IS NULL AND status <> '0' GROUP BY app_display_name ORDER BY failures DESC",
       description: "Count failed sign-ins per application (non-zero errorCode)",
     },
     {
-      sql: "SELECT id, created_date_time, app_display_name FROM azure.main.signin_logs(filter := 'status/errorCode ne 0') WHERE _row_kind IS NULL",
-      description: "Narrow the feed server-side to failed sign-ins with an additive OData $filter",
-    },
-    {
       sql: "SELECT _watermark_next FROM azure.main.signin_logs() WHERE _row_kind = 'marker'",
       description: "Read the high-watermark cursor to persist for the next scan",
+    },
+    {
+      sql: "SELECT id, created_date_time, app_display_name FROM azure.main.signin_logs(filter := 'status/errorCode ne 0') WHERE _row_kind IS NULL",
+      description: "Narrow the feed server-side to failed sign-ins with an additive OData $filter",
     },
   ],
 };
@@ -278,6 +325,12 @@ export const AUDITS: EndpointSpec = {
       sql: "SELECT id, created_date_time, app_display_name FROM azure.main.audit_logs(since := '<prior _watermark_next>') WHERE _row_kind IS NULL",
       description: "Incremental scan replaying a previously saved high-watermark cursor",
     },
+    AUDIT_FROM_FAILED_SIGNIN_IP_EXAMPLE,
+    USER_ACTIVITY_SUMMARY_EXAMPLE,
+    {
+      sql: "SELECT _watermark_next FROM azure.main.audit_logs() WHERE _row_kind = 'marker'",
+      description: "Read the high-watermark cursor to persist for the next scan",
+    },
     {
       sql: "SELECT app_display_name, count(*) AS events FROM azure.main.audit_logs() WHERE _row_kind IS NULL GROUP BY app_display_name ORDER BY events DESC",
       description: "Count audit events per logging service",
@@ -285,10 +338,6 @@ export const AUDITS: EndpointSpec = {
     {
       sql: "SELECT id, created_date_time, app_display_name FROM azure.main.audit_logs(since := '2026-01-01T00:00:00Z', until := '2026-02-01T00:00:00Z') WHERE _row_kind IS NULL",
       description: "Replay a bounded historical window (since/until); the marker cursor here is replay-only, not the live watermark",
-    },
-    {
-      sql: "SELECT _watermark_next FROM azure.main.audit_logs() WHERE _row_kind = 'marker'",
-      description: "Read the high-watermark cursor to persist for the next scan",
     },
   ],
 };

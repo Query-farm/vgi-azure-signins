@@ -52,6 +52,26 @@ CREATE SECRET azure_sp (TYPE azure_graph, TENANT_ID '<tenant-guid>', CLIENT_ID '
 
 For this worker the service principal needs the Microsoft Graph application permission `AuditLog.Read.All`; reading sign-in logs additionally requires an Entra ID P1 or P2 license.
 
+With the secret in place the two feeds can be correlated. Both carry `user_principal_name`, so this query finds users with failed sign-ins and counts the directory audit events they initiated after their first failure:
+
+```sql
+WITH failed AS (
+  SELECT user_principal_name, count(*) AS failed_signins,
+         min(created_date_time::TIMESTAMPTZ) AS first_failure
+  FROM azure.main.signin_logs()
+  WHERE _row_kind IS NULL AND status <> '0'
+  GROUP BY user_principal_name)
+SELECT f.user_principal_name, f.failed_signins, f.first_failure,
+       count(*) AS audit_events_after
+FROM failed AS f
+JOIN azure.main.audit_logs() AS a
+  ON a.user_principal_name = f.user_principal_name
+ AND a.created_date_time::TIMESTAMPTZ > f.first_failure
+WHERE a._row_kind IS NULL
+GROUP BY f.user_principal_name, f.failed_signins, f.first_failure
+ORDER BY audit_events_after DESC, f.user_principal_name;
+```
+
 ## Development
 
 Requires [Bun](https://bun.sh). `bun install` also fetches the shared `@vgi-azure/graph-core` package from GitHub.

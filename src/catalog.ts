@@ -12,6 +12,11 @@
 
 import { Schema, Field, Utf8 } from "@query-farm/apache-arrow";
 import type { CatalogDescriptor, SecretTypeDescriptor, ViewDescriptor, VgiFunction } from "@query-farm/vgi";
+import {
+  FAILED_SIGNIN_THEN_AUDIT_EXAMPLE,
+  AUDIT_FROM_FAILED_SIGNIN_IP_EXAMPLE,
+  USER_ACTIVITY_SUMMARY_EXAMPLE,
+} from "./schema.js";
 
 const REPO = "https://github.com/Query-farm/vgi-azure-signins";
 const ISSUES = `${REPO}/issues`;
@@ -144,6 +149,11 @@ const CATALOG_TAGS: Record<string, string> = {
       name: "browse_feeds",
       prompt: "What audit feeds can I sync, and which table function serves each?",
     },
+    {
+      name: "failed_signin_ips_with_audit_activity",
+      prompt:
+        "Which source IP addresses had at least one failed sign-in and were also the source of directory audit events, and how many distinct users initiated directory audit events from each of those IPs?",
+    },
   ]),
 };
 
@@ -214,6 +224,9 @@ const SCHEMA_TAGS: Record<string, string> = {
       description: "Directory audit events grouped by logging service",
       sql: "SELECT app_display_name, count(*) AS events FROM azure.main.audit_logs() WHERE _row_kind IS NULL GROUP BY app_display_name ORDER BY events DESC",
     },
+    ...[FAILED_SIGNIN_THEN_AUDIT_EXAMPLE, AUDIT_FROM_FAILED_SIGNIN_IP_EXAMPLE, USER_ACTIVITY_SUMMARY_EXAMPLE].map(
+      ({ description, sql }) => ({ description, sql }),
+    ),
   ]),
 };
 
