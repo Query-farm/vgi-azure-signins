@@ -52,6 +52,17 @@ export const AZURE_GRAPH_SECRET: SecretTypeDescriptor = {
   ),
 };
 
+// Upstream references rendered into the catalog docs (VGI183: link out to the service, API
+// docs and app-registration/permission docs this worker actually calls).
+const SOURCES_MD =
+  "### Sources and references\n\n" +
+  "- [Microsoft Graph audit logs overview](https://learn.microsoft.com/en-us/graph/api/resources/azure-ad-auditlog-overview) — the sign-in and directory-audit log resources and their licensing\n" +
+  "- [List signIns](https://learn.microsoft.com/en-us/graph/api/signin-list) — the `/auditLogs/signIns` endpoint\n" +
+  "- [List directoryAudits](https://learn.microsoft.com/en-us/graph/api/directoryaudit-list) — the `/auditLogs/directoryAudits` endpoint\n" +
+  "- [Get access without a user (app-only auth)](https://learn.microsoft.com/en-us/graph/auth-v2-service) — set up the client-credentials app and grant `AuditLog.Read.All`";
+const SOURCES_LLM =
+  " Upstream Microsoft docs: Microsoft Graph audit logs overview https://learn.microsoft.com/en-us/graph/api/resources/azure-ad-auditlog-overview; List signIns https://learn.microsoft.com/en-us/graph/api/signin-list; List directoryAudits https://learn.microsoft.com/en-us/graph/api/directoryaudit-list; Get access without a user (app-only auth) https://learn.microsoft.com/en-us/graph/auth-v2-service.";
+
 /** Catalog-level tags: docs, discovery, provenance, and the agent-test suite. */
 const CATALOG_TAGS: Record<string, string> = {
   "vgi.title": "Entra Audit Logs",
@@ -69,7 +80,7 @@ const CATALOG_TAGS: Record<string, string> = {
     "'azure_graph' secret (tenant_id, client_id, client_secret) with AuditLog.Read.All; reading " +
     "sign-in logs additionally requires Entra ID P1/P2. The PII columns ip_address and " +
     "user_principal_name are published through the mandatory vgi-pii -> vgi-mask (format-preserving) " +
-    "composition so masked values stay joinable across tables.",
+    "composition so masked values stay joinable across tables." + SOURCES_LLM,
   "vgi.doc_md":
     "## Microsoft Entra Audit & Sign-in Logs\n\n" +
     "Incremental (lagged-watermark) access to Microsoft Entra ID (Azure AD) audit and sign-in logs " +
@@ -81,7 +92,7 @@ const CATALOG_TAGS: Record<string, string> = {
     "lag-adjusted) high-watermark to persist and replay via the `since` argument on the next scan. " +
     "Call with no arguments to backfill; pass `since := '<watermark>'` for an incremental scan. Apply " +
     "idempotently (dedup-by-id) because the safety-lag overlap re-emits the window tail. An app-only " +
-    "`azure_graph` secret is required.",
+    "`azure_graph` secret is required.\n\n" + SOURCES_MD,
   "vgi.keywords": JSON.stringify([
     "azure",
     "entra id",
