@@ -1,0 +1,58 @@
+# name: test/sql/offline.test
+# description: vgi-azure-signins without credentials or network: ATTACH, the advertised functions
+# and tables, and every catalog executable example (credential-free bind probes and
+# static manifests). Runs over every transport; the live Azure scans need an azure_graph
+# secret and are not exercised here.
+# group: [sql]
+
+require-env VGI_TEST_WORKER
+
+# Transport failures must fail the suite rather than silently skip it.
+set ignore_error_messages
+
+statement ok
+ATTACH 'azure' AS azure (TYPE vgi, LOCATION '{VGI_TEST_WORKER}');
+
+query TT
+SELECT DISTINCT schema_name, function_name FROM duckdb_functions() WHERE database_name = 'azure' ORDER BY ALL;
+----
+main	audit_logs
+main	signin_logs
+
+query TT
+SELECT schema_name, table_name FROM duckdb_tables() WHERE database_name = 'azure'
+UNION ALL SELECT schema_name, view_name FROM duckdb_views() WHERE database_name = 'azure' ORDER BY ALL;
+----
+main	audit_feeds
+
+# signin_logs_bind_probe: Bind signin_logs and expose its result columns (credential-free; drop LIMIT 0 and attach an azure_graph secret to sync real sign-in events)
+query TT
+SELECT column_name, column_type FROM (DESCRIBE SELECT id, created_date_time, app_display_name, user_principal_name, ip_address, status FROM azure.main.signin_logs() LIMIT 0);
+----
+id	VARCHAR
+created_date_time	VARCHAR
+app_display_name	VARCHAR
+user_principal_name	VARCHAR
+ip_address	VARCHAR
+status	VARCHAR
+
+query I
+SELECT count(*) FROM (SELECT id, created_date_time, app_display_name, user_principal_name, ip_address, status FROM azure.main.signin_logs() LIMIT 0);
+----
+0
+
+# audit_logs_bind_probe: Bind audit_logs and expose its result columns (credential-free; attach an azure_graph secret to sync real audit events)
+query TT
+SELECT column_name, column_type FROM (DESCRIBE SELECT id, created_date_time, app_display_name, user_principal_name, ip_address, status FROM azure.main.audit_logs() LIMIT 0);
+----
+id	VARCHAR
+created_date_time	VARCHAR
+app_display_name	VARCHAR
+user_principal_name	VARCHAR
+ip_address	VARCHAR
+status	VARCHAR
+
+query I
+SELECT count(*) FROM (SELECT id, created_date_time, app_display_name, user_principal_name, ip_address, status FROM azure.main.audit_logs() LIMIT 0);
+----
+0
